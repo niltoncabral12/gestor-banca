@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Banca - Percentage Staking + HA</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .card-hover:hover {
+            transform: translateY(-5px);
+            transition: transform 0.3s ease;
+        }
+        .positive {
+            color: #10b981;
+        }
+        .negative {
+            color: #ef4444;
+        }
+        .neutral {
+            color: #6b7280;
+        }
+        .stake-indicator {
+            background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+    <!-- Container Principal -->
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Cabeçalho -->
+        <header class="mb-10">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">
+                        <i class="fas fa-chart-line text-blue-600"></i> 
+                        Gestor de Banca
+                    </h1>
+                    <p class="text-gray-600">Percentage Staking + Handicap Asiático</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm text-gray-500">Desenvolvido para apostas responsáveis</p>
+                    <button id="resetBtn" class="mt-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition">
+                        <i class="fas fa-redo"></i> Resetar Dados
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard Principal -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Card: Saldo Atual -->
+            <div class="bg-white rounded-2xl shadow-lg p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Saldo Atual</p>
+                        <h2 id="currentBalance" class="text-4xl font-bold mt-2">500,00€</h2>
+                    </div>
+                    <div class="text-4xl text-green-500">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="flex justify-between text-sm">
+                        <span>Banca Inicial</span>
+                        <span id="initialBalance" class="font-medium">500,00€</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
+                        <div id="balanceProgress" class="bg-green-500 h-2 rounded-full" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card: ROI e Performance -->
+            <div class="bg-white rounded-2xl shadow-lg p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">ROI Total</p>
+                        <h2 id="roiValue" class="text-4xl font-bold mt-2">0%</h2>
+                    </div>
+                    <div class="text-4xl text-blue-500">
+                        <i class="fas fa-percentage"></i>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="flex justify-between text-sm">
+                        <span>Lucro/Prejuízo Total</span>
+                        <span id="totalProfitLoss" class="font-medium">0,00€</span>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-500">
+                        <i class="fas fa-info-circle"></i> Retorno sobre investimento
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card: Stake Sugerida -->
+            <div class="bg-white rounded-2xl shadow-lg p-6 card-hover">
+                <div class="stake-indicator rounded-xl p-4 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm opacity-90">Stake Sugerida</p>
+                            <h2 id="suggestedStake" class="text-4xl font-bold mt-2">10,00€</h2>
+                        </div>
+                        <div class="text-4xl">
+                            <i class="fas fa-calculator"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-sm opacity-90">
+                        <p>Baseada em <span id="stakePercent">2%</span> da banca atual</p>
+                        <p>Stake mínima: <span id="minStakeValue">1,00€</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção de Configuração e Aposta -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+            <!-- Painel de Configuração -->
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+                <h3 class="text-xl font-bold mb-6 text-gray-800">
+                    <i class="fas fa-cog text-blue-600"></i> Configuração da Banca
+                </h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Banca Inicial (€)
+                        </label>
+                        <input type="number" step="0.01" min="1" id="initialBank" 
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                               value="500.00">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Percentagem da Stake (%)
+                        </label>
+                        <div class="flex items-center space-x-4">
+                            <input type="range" min="0.5" max="10" step="0.5" id="stakePercentSlider" 
+                                   class="w-full" value="2">
+                            <span id="stakePercentValue" class="text-lg font-bold text-blue-600 min-w-[50px]">2%</span>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">
+                            Recomendado: 1-3% para gestão conservadora
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Stake Mínima (€)
+                        </label>
+                        <input type="number" step="0.01" min="0.10" id="minStake" 
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                               value="1.00">
+                    </div>
+                    
+                    <div class="pt-4">
+                        <button id="saveConfigBtn" 
+                                class="w-full bg-blue-600 text-white p-3 rounded-lg font-medium hover:bg-blue-700 transition duration-300">
+                            <i class="fas fa-save"></i> Guardar Configuração
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Estatísticas Rápidas -->
+                <div class="mt-8 pt-6 border-t border-gray-200">
+                    <h4 class="font-medium text-gray-700 mb-3">Estatísticas Rápidas</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-gray-50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-500">Apostas Registadas</p>
+                            <p id="totalBets" class="text-lg font-bold">0</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-500">Taxa de Sucesso</p>
+                            <p id="successRate" class="text-lg font-bold">0%</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-500">Maior Vitória</p>
+                            <p id="biggestWin" class="text-lg font-bold positive">0,00€</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-500">Maior Perda</p>
+                            <p id="biggestLoss" class="text-lg font-bold negative">0,00€</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Painel de Registo de Aposta -->
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+                <h3 class="text-xl font-bold mb-6 text-gray-800">
+                    <i class="fas fa-plus-circle text-green-600"></i> Nova Aposta
+                </h3>
+                
+                <form id="betForm" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Data
+                            </label>
+                            <input type="date" id="betDate" required
+                                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Odd
+                            </label>
+                            <input type="number" step="0.01" min="1.01" id="betOdd" required
+                                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                   placeholder="Ex: 1.85">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Evento
+                        </label>
+                        <input type="text" id="betEvent" required
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                               placeholder="Ex: Real Madrid vs Barcelona">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Mercado (Handicap Asiático)
+                        </label>
+                        <input type="text" id="betMarket" required
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                               placeholder="Ex: AH -1.5, AH +0.75">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Stake a Apostar (€)
+                            <span class="text-xs text-gray-500 ml-1">(calculada automaticamente)</span>
+                        </label>
+                        <div class="flex items-center">
+                            <input type="number" step="0.01" min="0.10" id="betStake" required readonly
+                                   class="w-full p-3 border-2 border-blue-300 bg-blue-50 rounded-lg font-bold">
+                            <button type="button" id="recalculateStakeBtn" 
+                                    class="ml-2 p-3 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">
+                            Stake calculada: <span id="currentBankForStake">500,00€</span> × <span id="currentPercentForStake">2%</span>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Resultado da Aposta
+                        </label>
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                            <button type="button" data-result="win" 
+                                    class="result-btn p-3 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 font-medium">
+                                <i class="fas fa-trophy"></i> Vitória
+                            </button>
+                            <button type="button" data-result="loss" 
+                                    class="result-btn p-3 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 font-medium">
+                                <i class="fas fa-times"></i> Derrota
+                            </button>
+                            <button type="button" data-result="void" 
+                                    class="result-btn p-3 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 font-medium">
+                                <i class="fas fa-ban"></i> Anulada
+                            </button>
+                            <button type="button" data-result="half-win" 
+                                    class="result-btn p-3 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 font-medium">
+                                ½ Vitória
+                            </button>
+                            <button type="button" data-result="half-loss" 
+                                    class="result-btn p-3 bg-orange-100 text-orange-800 rounded-lg hover:bg-orange-200 font-medium">
+                                ½ Perda
+                            </button>
+                        </div>
+                        <input type="hidden" id="betResult" required>
+                    </div>
+                    
+                    <div class="pt-4">
+                        <button type="submit" id="submitBetBtn" 
+                                class="w-full bg-green-600 text-white p-3 rounded-lg font-medium hover:bg-green-700 transition duration-300">
+                            <i class="fas fa-check-circle"></i> Registar Aposta
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Pré-visualização do Resultado -->
+                <div id="resultPreview" class="mt-6 p-4 bg-gray-50 rounded-lg hidden">
+                    <h4 class="font-medium text-gray-700 mb-2">Pré-visualização do Resultado</h4>
+                    <div class="flex justify-between">
+                        <span>Potencial Lucro:</span>
+                        <span id="potentialProfit" class="font-bold">0,00€</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Nova Banca:</span>
+                        <span id="potentialBalance" class="font-bold">500,00€</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico de Evolução da Banca -->
+        <div class="bg-white rounded-2xl shadow-lg p-6 mb-10">
+            <h3 class="text-xl font-bold mb-6 text-gray-800">
+                <i class="fas fa-chart-line text-purple-600"></i> Evolução da Banca
+            </h3>
+            <div class="h-64">
+                <canvas id="bankChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Histórico de Apostas -->
+        <div class="bg-white rounded-2xl shadow-lg p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800">
+                    <i class="fas fa-history text-gray-600"></i> Histórico de Apostas
+                </h3>
+                <div class="flex space-x-2">
+                    <button id="exportBtn" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                        <i class="fas fa-file-export"></i> Exportar
+                    </button>
+                    <button id="clearHistoryBtn" class="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200">
+                        <i class="fas fa-trash"></i> Limpar
+                    </button>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3">Data</th>
+                            <th class="px-4 py-3">Evento</th>
+                            <th class="px-4 py-3">Mercado (HA)</th>
+                            <th class="px-4 py-3">Odd</th>
+                            <th class="px-4 py-3">Stake</th>
+                            <th class="px-4 py-3">Resultado</th>
+                            <th class="px-4 py-3">Lucro/Prejuízo</th>
+                            <th class="px-4 py-3">Banca Após</th>
+                        </tr>
+                    </thead>
+                    <tbody id="betsHistory">
+                        <!-- Histórico será preenchido via JavaScript -->
+                        <tr>
+                            <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+                                <i class="fas fa-inbox text-3xl mb-2 block"></i>
+                                Nenhuma aposta registada ainda
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Resumo do Histórico -->
+            <div class="mt-6 pt-6 border-t border-gray-200 grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center">
+                    <p class="text-sm text-gray-500">Vitórias</p>
+                    <p id="totalWins" class="text-2xl font-bold text-green-600">0</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-sm text-gray-500">Derrotas</p>
+                    <p id="totalLosses" class="text-2xl font-bold text-red-600">0</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-sm text-gray-500">Anuladas</p>
+                    <p id="totalVoids" class="text-2xl font-bold text-gray-600">0</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-sm text-gray-500">Stake Média</p>
+                    <p id="averageStake" class="text-2xl font-bold text-blue-600">0,00€</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-12 pt-8 border-t border-gray-300 text-center text-gray-600 text-sm">
+            <p>
+                <strong>Gestor de Banca v1.0</strong> - Percentage Staking + Handicap Asiático
+            </p>
+            <p class="mt-2">
+                Desenvolvido para gestão responsável de apostas desportivas
+            </p>
+            <p class="mt-4 text-xs">
+                <i class="fas fa-exclamation-triangle text-yellow-500"></i>
+                Lembre-se: Apostar com responsabilidade. Nunca aposte mais do que pode perder.
+            </p>
+        </footer>
+    </div>
+
+    <!-- Modal de Confirmação -->
+    <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-2xl p-6 max-w-md mx-4">
+            <h3 class="text-xl font-bold mb-4" id="modalTitle">Confirmar Ação</h3>
+            <p id="modalMessage" class="mb-6">Tem certeza que deseja prosseguir?</p>
+            <div class="flex justify-end space-x-3">
+                <button id="modalCancelBtn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">
+                    Cancelar
+                </button>
+                <button id="modalConfirmBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script JavaScript -->
+    <script>
+        // ========== ESTADO DA APLICAÇÃO ==========
+        let appState = {
+            config: {
+                initialBank: 500.00,
+                stakePercent: 2.0,
+                minStake: 1.00
+            },
+            currentBalance: 500.00,
+            bets: []
+        };
+
+        // ========== INICIALIZAÇÃO ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFromLocalStorage();
+            initializeElements();
+            updateDashboard();
+            updateSuggestedStake();
+            renderBetsHistory();
+            initializeChart();
+        });
+
+        // ========== FUNÇÕES DE PERSISTÊNCIA ==========
+        function loadFromLocalStorage() {
+            const savedConfig = localStorage.getItem('bankManager_config');
+            const savedBets = localStorage.getItem('bankManager_bets');
+            const savedBalance = localStorage.getItem('bankManager_balance');
+            
+            if (savedConfig) {
+                appState.config = JSON.parse(savedConfig);
+            }
+            
+            if (savedBets) {
+                appState.bets = JSON.parse(savedBets);
+            }
+            
+            if (savedBalance) {
+                appState.currentBalance = parseFloat(savedBalance);
+            } else {
+                appState.currentBalance = appState.config.initialBank;
+            }
+            
+            // Atualizar inputs com valores carregados
+            document.getElementById('initialBank').value = appState.config.initialBank.toFixed(2);
+            document.getElementById('stakePercentSlider').value = appState.config.stakePercent;
+            document.getElementById('stakePercentValue').textContent = appState.config.stakePercent + '%';
+            document.getElementById('minStake').value = appState.config.minStake.toFixed(2);
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('bankManager_config', JSON.stringify(appState.config));
+            localStorage.setItem('bankManager_bets', JSON.stringify(appState.bets));
+            localStorage.setItem('bankManager_balance', appState.currentBalance.toString());
+        }
+
+        // ========== FUNÇÕES DE CÁLCULO ==========
+        function calculateSuggestedStake() {
+            const stake = appState.currentBalance * (appState.config.stakePercent / 100);
+            return Math.max(stake, appState.config.minStake);
+        }
+
+        function calculateProfitLoss(stake, odd, result) {
+            switch(result) {
+                case 'win':
+                    return stake * (odd - 1);
+                case 'loss':
+                    return -stake;
+                case 'void':
+                    return 0;
+                case 'half-win':
+                    return (stake * (odd - 1)) / 2;
+                case 'half-loss':
+                    return -stake / 2;
+                default:
+                    return 0;
+            }
+        }
+
+        function calculateROI() {
+            const initial = appState.config.initialBank;
+            const current = appState.currentBalance;
+            return ((current - initial) / initial) * 100;
+        }
+
+        // ========== ATUALIZAÇÃO DA UI ==========
+        function updateDashboard() {
+            // Atualizar saldo
+            document.getElementById('currentBalance').textContent = 
+                appState.currentBalance.toFixed(2).replace('.', ',') + '€';
+            
+            // Atualizar banca inicial
+            document.getElementById('initialBalance').textContent = 
+                appState.config.initialBank.toFixed(2).replace('.', ',') + '€';
+            
+            // Calcular e atualizar ROI
+            const roi = calculateROI();
+            document.getElementById('roiValue').textContent = roi.toFixed(2) + '%';
+            document.getElementById('roiValue').className = `text-4xl font-bold mt-2 ${roi >= 0 ? 'positive' : 'negative'}`;
+            
+            // Calcular lucro/prejuízo total
+            const totalPL = appState.currentBalance - appState.config.initialBank;
+            document.getElementById('totalProfitLoss').textContent = 
+                (totalPL >= 0 ? '+' : '') + totalPL.toFixed(2).replace('.', ',') + '€';
+            document.getElementById('totalProfitLoss').className = `font-medium ${totalPL >= 0 ? 'positive' : 'negative'}`;
+            
+            // Atualizar barra de progresso
+            const progressPercent = Math.min((appState.currentBalance / appState.config.initialBank) * 100, 200);
+            document.getElementById('balanceProgress').style.width = progressPercent + '%';
+            document.getElementById('balanceProgress').className = 
+                `h-2 rounded-full ${totalPL >= 0 ? 'bg-green-500' : 'bg-red-500'}`;
+            
+            // Atualizar estatísticas rápidas
+            updateQuickStats();
+        }
+
+        function updateSuggestedStake() {
+            const suggestedStake = calculateSuggestedStake();
+            document.getElementById('suggestedStake').textContent = 
+                suggestedStake.toFixed(2).replace('.', ',') + '€';
+            document.getElementById('betStake').value = suggestedStake.toFixed(2);
+            document.getElementById('stakePercent').textContent = appState.config.stakePercent + '%';
+            document.getElementById('minStakeValue').textContent = 
+                appState.config.minStake.toFixed(2).replace('.', ',') + '€';
+            document.getElementById('currentBankForStake').textContent = 
+                appState.currentBalance.toFixed(2).replace('.', ',') + '€';
+            document.getElementById('currentPercentForStake').textContent = appState.config.stakePercent + '%';
+        }
+
+        function updateQuickStats() {
+            const totalBets = appState.bets.length;
+            document.getElementById('totalBets').textContent = totalBets;
+            
+            if (totalBets > 0) {
+                const wins = appState.bets.filter(b => b.result === 'win' || b.result === 'half-win').length;
+                const successRate = (wins / totalBets) * 100;
+                document.getElementById('successRate').textContent = successRate.toFixed(1) + '%';
+                
+                const profits = appState.bets.map(b => b.profitLoss).filter(p => p > 0);
+                const losses = appState.bets.map(b => b.profitLoss).filter(p => p < 0);
+                
+                const biggestWin = profits.length > 0 ? Math.max(...profits) : 0;
+                const biggestLoss = losses.length > 0 ? Math.min(...losses) : 0;
+                
+                document.getElementById('biggestWin').textContent = 
+                    biggestWin > 0 ? '+' + biggestWin.toFixed(2).replace('.', ',') + '€' : '0,00€';
+                document.getElementById('biggestLoss').textContent = 
+                    biggestLoss < 0 ? biggestLoss.toFixed(2).replace('.', ',') + '€' : '0,00€';
+                
+                const averageStake = appState.bets.reduce((sum, bet) => sum + bet.stake, 0) / totalBets;
+                document.getElementById('averageStake').textContent = 
+                    averageStake.toFixed(2).replace('.', ',') + '€';
+                
+                // Atualizar resumo do histórico
+                updateHistorySummary();
+            }
+        }
+
+        function updateHistorySummary() {
+            const wins = appState.bets.filter(b => b.result === 'win').length;
+            const halfWins = appState.bets.filter(b => b.result === 'half-win').length;
+            const losses = appState.bets.filter(b => b.result === 'loss').length;
+            const halfLosses = appState.bets.filter(b => b.result === 'half-loss').length;
+            const voids = appState.bets.filter(b => b.result === 'void').length;
+            
+            document.getElementById('totalWins').textContent = wins + halfWins;
+            document.getElementById('totalLosses').textContent = losses + halfLosses;
+            document.getElementById('totalVoids').textContent = voids;
+        }
+
+        // ========== RENDERIZAÇÃO DO HISTÓRICO ==========
+        function renderBetsHistory() {
+            const tbody = document.getElementById('betsHistory');
+            
+            if (appState.bets.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+                            <i class="fas fa-inbox text-3xl mb-2 block"></i>
+                            Nenhuma aposta registada ainda
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            // Ordenar por data (mais recente primeiro)
+            const sortedBets = [...appState.bets].sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            tbody.innerHTML = sortedBets.map((bet, index) => {
+                const resultClass = {
+                    'win': 'bg-green-100 text-green-800',
+                    'loss': 'bg-red-100 text-red-800',
+                    'void': 'bg-gray-100 text-gray-800',
+                    'half-win': 'bg-yellow-100 text-yellow-800',
+                    'half-loss': 'bg-orange-100 text-orange-800'
+                }[bet.result];
+                
+                const resultText = {
+                    'win': 'Vitória',
+                    'loss': 'Derrota',
+                    'void': 'Anulada',
+                    'half-win': '½ Vitória',
+                    'half-loss': '½ Perda'
+                }[bet.result];
+                
+                const profitClass = bet.profitLoss >= 0 ? 'positive font-bold' : 'negative font-bold';
+                const profitSign = bet.profitLoss > 0 ? '+' : '';
+                
+                return `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="px-4 py-3">${formatDate(bet.date)}</td>
+                        <td class="px-4 py-3 font-medium">${bet.event}</td>
+                        <td class="px-4 py-3">${bet.market}</td>
+                        <td class="px-4 py-3 font-medium">${bet.odd}</td>
+                        <td class="px-4 py-3 font-bold">${bet.stake.toFixed(2).replace('.', ',')}€</td>
+                        <td class="px-4 py-3">
+                            <span class="px-3 py-1 rounded-full text-xs ${resultClass}">
+                                ${resultText}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 ${profitClass}">
+                            ${profitSign}${bet.profitLoss.toFixed(2).replace('.', ',')}€
+                        </td>
+                        <td class="px-4 py-3 font-medium">
+                            ${bet.balanceAfter.toFixed(2).replace('.', ',')}€
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('pt-PT');
+        }
+
+        // ========== GRÁFICO ==========
+        let bankChart = null;
+        
+        function initializeChart() {
+            const ctx = document.getElementById('bankChart').getContext('2d');
+            
+            // Preparar dados para o gráfico
+            const dates = [];
+            const balances = [];
+            
+            // Adicionar ponto inicial
+            dates.push('Início');
+            balances.push(appState.config.initialBank);
+            
+            // Adicionar pontos após cada aposta
+            let runningBalance = appState.config.initialBank;
+            appState.bets.forEach((bet, index) => {
+                runningBalance += bet.profitLoss;
+                dates.push(`Aposta ${index + 1}`);
+                balances.push(runningBalance);
+            });
+            
+            // Adicionar ponto atual
+            if (appState.bets.length > 0) {
+                dates.push('Atual');
+                balances.push(appState.currentBalance);
+            }
+            
+            // Criar ou atualizar gráfico
+            if (bankChart) {
+                bankChart.destroy();
+            }
+            
+            bankChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: 'Banca (€)',
+                        data: balances,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(0) + '€';
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ========== MANIPULAÇÃO DE EVENTOS ==========
+        function initializeElements() {
+            // Configuração do slider de percentagem
+            const stakeSlider = document.getElementById('stakePercentSlider');
+            const stakeValue = document.getElementById('stakePercentValue');
+            
+            stakeSlider.addEventListener('input', function() {
+                stakeValue.textContent = this.value + '%';
+            });
+            
+            // Botão para guardar configuração
+            document.getElementById('saveConfigBtn').addEventListener('click', function() {
+                const initialBank = parseFloat(document.getElementById('initialBank').value);
+                const stakePercent = parseFloat(document.getElementById('stakePercentSlider').value);
+                const minStake = parseFloat(document.getElementById('minStake').value);
+                
+                if (isNaN(initialBank) || initialBank <= 0) {
+                    showModal('Erro', 'Banca inicial inválida. Insira um valor positivo.');
+                    return;
+                }
+                
+                appState.config.initialBank = initialBank;
+                appState.config.stakePercent = stakePercent;
+                appState.config.minStake = minStake;
+                
+                // Se for a primeira configuração ou se resetou a banca
+                if (appState.bets.length === 0) {
+                    appState.currentBalance = initialBank;
+                }
+                
+                saveToLocalStorage();
+                updateDashboard();
+                updateSuggestedStake();
+                showModal('Sucesso', 'Configuração guardada com sucesso!');
+            });
+            
+            // Botão para recalcular stake
+            document.getElementById('recalculateStakeBtn').addEventListener('click', updateSuggestedStake);
+            
+            // Botões de resultado
+            document.querySelectorAll('.result-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const result = this.getAttribute('data-result');
+                    document.getElementById('betResult').value = result;
+                    
+                    // Remover seleção anterior
+                    document.querySelectorAll('.result-btn').forEach(btn => {
+                        btn.classList.remove('ring-2', 'ring-offset-2');
+                        btn.classList.remove('ring-blue-500');
+                    });
+                    
+                    // Adicionar seleção atual
+                    this.classList.add('ring-2', 'ring-offset-2', 'ring-blue-500');
+                    
+                    // Atualizar pré-visualização
+                    updateResultPreview();
+                });
+            });
+            
+            // Atualizar pré-visualização quando odd ou stake mudam
+            document.getElementById('betOdd').addEventListener('input', updateResultPreview);
+            document.getElementById('betStake').addEventListener('input', updateResultPreview);
+            
+            // Submissão do formulário de aposta
+            document.getElementById('betForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const date = document.getElementById('betDate').value;
+                const event = document.getElementById('betEvent').value.trim();
+                const market = document.getElementById('betMarket').value.trim();
+                const odd = parseFloat(document.getElementById('betOdd').value);
+                const stake = parseFloat(document.getElementById('betStake').value);
+                const result = document.getElementById('betResult').value;
+                
+                // Validações
+                if (!date) {
+                    showModal('Erro', 'Por favor, selecione uma data.');
+                    return;
+                }
+                
+                if (!event || !market) {
+                    showModal('Erro', 'Por favor, preencha todos os campos.');
+                    return;
+                }
+                
+                if (isNaN(odd) || odd < 1.01) {
+                    showModal('Erro', 'Odd inválida. Deve ser maior que 1.00.');
+                    return;
+                }
+                
+                if (isNaN(stake) || stake < appState.config.minStake) {
+                    showModal('Erro', `Stake inválida. Mínimo: ${appState.config.minStake.toFixed(2)}€`);
+                    return;
+                }
+                
+                if (!result) {
+                    showModal('Erro', 'Por favor, selecione um resultado.');
+                    return;
+                }
+                
+                // Calcular lucro/prejuízo
+                const profitLoss = calculateProfitLoss(stake, odd, result);
+                
+                // Atualizar banca
+                const previousBalance = appState.currentBalance;
+                appState.currentBalance += profitLoss;
+                
+                // Criar objeto da aposta
+                const bet = {
+                    id: Date.now(),
+                    date: date,
+                    event: event,
+                    market: market,
+                    odd: odd,
+                    stake: stake,
+                    result: result,
+                    profitLoss: profitLoss,
+                    balanceBefore: previousBalance,
+                    balanceAfter: appState.currentBalance
+                };
+                
+                // Adicionar à lista de apostas
+                appState.bets.push(bet);
+                
+                // Salvar no localStorage
+                saveToLocalStorage();
+                
+                // Atualizar UI
+                updateDashboard();
+                updateSuggestedStake();
+                renderBetsHistory();
+                initializeChart();
+                
+                // Limpar formulário
+                document.getElementById('betForm').reset();
+                document.getElementById('betResult').value = '';
+                document.querySelectorAll('.result-btn').forEach(btn => {
+                    btn.classList.remove('ring-2', 'ring-offset-2', 'ring-blue-500');
+                });
+                document.getElementById('resultPreview').classList.add('hidden');
+                
+                // Definir data atual como padrão
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('betDate').value = today;
+                
+                // Recalcular stake
+                updateSuggestedStake();
+                
+                showModal('Aposta Registada', 
+                    `Resultado: ${profitLoss >= 0 ? 'Lucro' : 'Prejuízo'} de ${Math.abs(profitLoss).toFixed(2)}€<br>
+                     Nova banca: ${appState.currentBalance.toFixed(2)}€`);
+            });
+            
+            // Botão de reset
+            document.getElementById('resetBtn').addEventListener('click', function() {
+                showModal('Confirmar Reset', 
+                    'Tem certeza que deseja resetar todos os dados? Esta ação não pode ser desfeita.',
+                    function() {
+                        localStorage.clear();
+                        appState = {
+                            config: {
+                                initialBank: 500.00,
+                                stakePercent: 2.0,
+                                minStake: 1.00
+                            },
+                            currentBalance: 500.00,
+                            bets: []
+                        };
+                        
+                        // Resetar inputs
+                        document.getElementById('initialBank').value = '500.00';
+                        document.getElementById('stakePercentSlider').value = '2';
+                        document.getElementById('stakePercentValue').textContent = '2%';
+                        document.getElementById('minStake').value = '1.00';
+                        
+                        updateDashboard();
+                        updateSuggestedStake();
+                        renderBetsHistory();
+                        initializeChart();
+                        
+                        showModal('Dados Resetados', 'Todos os dados foram resetados com sucesso.');
+                    });
+            });
+            
+            // Botão de limpar histórico
+            document.getElementById('clearHistoryBtn').addEventListener('click', function() {
+                if (appState.bets.length === 0) {
+                    showModal('Histórico Vazio', 'Não há apostas para limpar.');
+                    return;
+                }
+                
+                showModal('Limpar Histórico', 
+                    'Tem certeza que deseja limpar todo o histórico de apostas? A banca atual será mantida.',
+                    function() {
+                        appState.bets = [];
+                        saveToLocalStorage();
+                        renderBetsHistory();
+                        initializeChart();
+                        updateQuickStats();
+                        showModal('Histórico Limpo', 'Todas as apostas foram removidas do histórico.');
+                    });
+            });
+            
+            // Botão de exportar
+            document.getElementById('exportBtn').addEventListener('click', function() {
+                if (appState.bets.length === 0) {
+                    showModal('Nada para Exportar', 'Não há apostas registadas para exportar.');
+                    return;
+                }
+                
+                exportToCSV();
+            });
+            
+            // Configurar data atual como padrão
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('betDate').value = today;
+        }
+
+        function updateResultPreview() {
+            const oddInput = document.getElementById('betOdd');
+            const stakeInput = document.getElementById('betStake');
+            const resultInput = document.getElementById('betResult').value;
+            
+            if (!oddInput.value || !stakeInput.value || !resultInput) {
+                return;
+            }
+            
+            const odd = parseFloat(oddInput.value);
+            const stake = parseFloat(stakeInput.value);
+            
+            if (isNaN(odd) || isNaN(stake)) {
+                return;
+            }
+            
+            const profitLoss = calculateProfitLoss(stake, odd, resultInput);
+            const newBalance = appState.currentBalance + profitLoss;
+            
+            document.getElementById('potentialProfit').textContent = 
+                (profitLoss >= 0 ? '+' : '') + profitLoss.toFixed(2).replace('.', ',') + '€';
+            document.getElementById('potentialProfit').className = 
+                `font-bold ${profitLoss >= 0 ? 'positive' : 'negative'}`;
+            
+            document.getElementById('potentialBalance').textContent = 
+                newBalance.toFixed(2).replace('.', ',') + '€';
+            
+            document.getElementById('resultPreview').classList.remove('hidden');
+        }
+
+        // ========== MODAL ==========
+        let modalCallback = null;
+        
+        function showModal(title, message, confirmCallback = null) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').innerHTML = message;
+            modalCallback = confirmCallback;
+            
+            document.getElementById('confirmModal').classList.remove('hidden');
+            
+            // Configurar botões do modal
+            document.getElementById('modalCancelBtn').onclick = closeModal;
+            document.getElementById('modalConfirmBtn').onclick = function() {
+                if (modalCallback) {
+                    modalCallback();
+                }
+                closeModal();
+            };
+        }
+        
+        function closeModal() {
+            document.getElementById('confirmModal').classList.add('hidden');
+            modalCallback = null;
+        }
+
+        // ========== EXPORTAÇÃO ==========
+        function exportToCSV() {
+            if (appState.bets.length === 0) return;
+            
+            // Cabeçalhos
+            let csv = 'Data,Evento,Mercado (HA),Odd,Stake (€),Resultado,Lucro/Prejuízo (€),Banca Após (€)\n';
+            
+            // Dados
+            appState.bets.forEach(bet => {
+                const resultText = {
+                    'win': 'Vitória',
+                    'loss': 'Derrota',
+                    'void': 'Anulada',
+                    'half-win': '½ Vitória',
+                    'half-loss': '½ Perda'
+                }[bet.result];
+                
+                csv += `"${formatDate(bet.date)}","${bet.event}","${bet.market}",${bet.odd},${bet.stake},"${resultText}",${bet.profitLoss},${bet.balanceAfter}\n`;
+            });
+            
+            // Adicionar resumo
+            csv += '\n';
+            csv += 'RESUMO GERAL\n';
+            csv += `Banca Inicial,${appState.config.initialBank}\n`;
+            csv += `Banca Atual,${appState.currentBalance}\n`;
+            csv += `Lucro/Prejuízo Total,${appState.currentBalance - appState.config.initialBank}\n`;
+            csv += `ROI,${calculateROI().toFixed(2)}%\n`;
+            csv += `Total de Apostas,${appState.bets.length}\n`;
+            
+            // Criar e baixar arquivo
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `gestor_banca_${new Date().toISOString().slice(0,10)}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showModal('Exportação Concluída', 'Os dados foram exportados para CSV com sucesso.');
+        }
+    </script>
+</body>
+</html>
